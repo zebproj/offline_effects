@@ -21,6 +21,5 @@ varispeed.o: varispeed.c varispeed.h
 play.o: play.c play.h
 	$(CC) -c play.c
 
-
 clean:
 	rm -rf *o utility 

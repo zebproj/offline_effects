@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "sndfile.h"
+#include <stdlib.h>
 
 int main(int argc, const char **argv){
 	
@@ -14,14 +14,9 @@ int main(int argc, const char **argv){
 		return 1;
 	}
 
-	SNDFILE *infile, *outfile;
-	SF_INFO sfinfo;
-	sfinfo.format = 0;
-	
 	const char *effect_arg = argv[1];
 	const char *infilename, *outfilename;
 	double new_sample_rate, pitch;
-
 	
 	// Reverse
 	if (!(strcmp(effect_arg, "reverse"))){
@@ -33,15 +28,8 @@ int main(int argc, const char **argv){
 
 		infilename = argv[2];
 		outfilename = argv[3];
-		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
-
-			printf("Only .wav or .aif files are allowed\n");
-			return 1;
-		}
-
-		reverse(infile, outfile, infilename, outfilename, &sfinfo);
+		reverse(infilename, outfilename);
 
 	// Info
 	} else if (!(strcmp(effect_arg, "info"))){
@@ -51,10 +39,10 @@ int main(int argc, const char **argv){
 			printf("USAGE: utility info inputFileName\n");
 			return 1;
 		}
-		infilename = argv[2];
-		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		info(infilename, &sfinfo);
+		infilename = argv[2];
+
+		info(infilename);
 
 	// Sample Rate
 	} else if (!(strcmp(effect_arg, "sr"))){
@@ -67,15 +55,8 @@ int main(int argc, const char **argv){
 		infilename = argv[2];
 		outfilename = argv[3];
 		new_sample_rate = atof(argv[4]);
-		infile = sf_open(infilename, SFM_READ, &sfinfo);
-
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
-
-			printf("Only .wav or .aif files are allowed\n");
-			return 1;
-		}
 		
-		sample_rate(infile, outfile, infilename, outfilename, &sfinfo, new_sample_rate);
+		sample_rate(infilename, outfilename, new_sample_rate);
 
 	// Vari Speed
 	} else if (!(strcmp(effect_arg, "vari"))){
@@ -88,15 +69,8 @@ int main(int argc, const char **argv){
 		infilename = argv[2];
 		outfilename = argv[3];
 		pitch = atof(argv[4]);
-		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
-			
-			printf("Only .wav or .aif files are allowed\n");
-			return 1;
-		}
-
-		vari_speed(infile, outfile, infilename, outfilename, &sfinfo, pitch);
+		vari_speed(infilename, outfilename, pitch);
 
 	// Play
 	} else if (!(strcmp(effect_arg, "play"))){
@@ -107,15 +81,8 @@ int main(int argc, const char **argv){
 		}	
 
 		infilename = argv[2];
-		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
-		
-			printf("Only .wav or .aif files are allowed\n");
-			return 1;
-		}
-
-		play(infile, &sfinfo);
+		play(infilename); 
 
 	}
 

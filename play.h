@@ -2,6 +2,6 @@
 #include "sndfile.h"
 #include "portaudio.h"
 
-void play(SNDFILE *infile, SF_INFO *sfinfo);
+void play(const char *infilename);
 static void StreamFinished();
 

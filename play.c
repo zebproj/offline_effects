@@ -10,7 +10,6 @@ typedef struct
 }
 paTestData;
 
-
 int patestCallback (const void *inputBuffer, void *outputBuffer,
 				unsigned long framesPerBuffer,
 				const PaStreamCallbackTimeInfo* timeInfo,
@@ -25,12 +24,10 @@ int patestCallback (const void *inputBuffer, void *outputBuffer,
 	(void) statusFlags;
 	(void) inputBuffer;
 
-
 	for (i=0; i < framesPerBuffer; i++) {
 
 		*out++ = data->file[data->file_ptr];
 		data->file_ptr++;
-		
 		
 		if (data->file_ptr >= data->frames)
 			data->file_ptr -= data->frames;
@@ -39,19 +36,28 @@ int patestCallback (const void *inputBuffer, void *outputBuffer,
 			data->file_ptr += data->frames;
 
 	}
-		
 	
 	return paContinue;
-
 }
-
 
 void StreamFinished(){
 
 	printf("Stream completed\n");
 }
 
-void play(SNDFILE *infile, SF_INFO *sfinfo) {
+void play(const char *infilename) {
+	
+	SNDFILE *infile;
+	SF_INFO sfinfo;
+	sfinfo.format = 0;
+
+	infile = sf_open(infilename, SFM_READ, &sfinfo);
+
+	if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
+		
+		printf("Only .wav or .aif files are allowed\n");
+		return;
+	}
 
 	paTestData data;
 	PaStreamParameters outputParameters;
@@ -62,8 +68,9 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 
 	if (err != paNoError)
 		printf("There was an error opening port audio\n");
+
 	outputParameters.device =  Pa_GetDefaultOutputDevice();
-	outputParameters.channelCount = sfinfo->channels;
+	outputParameters.channelCount = sfinfo.channels;
 	outputParameters.sampleFormat = paFloat32;
 	outputParameters.hostApiSpecificStreamInfo = NULL;
 	//outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
@@ -72,7 +79,7 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 	err = Pa_OpenStream(&stream,
 				NULL,
 				&outputParameters,
-				sfinfo->samplerate,
+				sfinfo.samplerate,
 				FRAMES_PER_BUFFER,
 				paClipOff,
 				patestCallback,
@@ -84,8 +91,8 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 		printf("%s\n", errorString);
 	}
 
-	int readcount, i = 0, frames = sfinfo->frames;
-	float *samples = malloc(sizeof(float)*(frames*sfinfo->channels));
+	int readcount, i = 0, frames = sfinfo.frames;
+	float *samples = malloc(sizeof(float)*(frames*sfinfo.channels));
 
 	if (!infile)
 	{
@@ -107,14 +114,13 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 
 	err = Pa_StartStream(stream);
 
-	Pa_Sleep((frames/sfinfo->samplerate)*1000);	
+	Pa_Sleep((frames/sfinfo.samplerate)*1000);	
 
 	err = Pa_StopStream(stream);
 
 	err = Pa_CloseStream(stream);
 
 	Pa_Terminate();
-
 
 	return;
 }
