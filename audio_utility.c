@@ -7,13 +7,16 @@
 #include <sndfile.h>
 #include <stdlib.h>
 #include <string.h>
-#include <samplerate.h>
 
 #define REVERSE 0
-#define INFO 0
+#define INFO 1
+#define SCRAMBLE 2
+#define PITCHUP 3
 
 void info(const char *infilename, SF_INFO *sfinfo);
 void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo);
+void scramble(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo);
+void pitchup(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo);
 
 int main(int argc, const char **argv){
 	
@@ -37,9 +40,7 @@ int main(int argc, const char **argv){
 	len = strxfrm(outfilename, infilename, len);
 
 	if (!(strcmp(effect_arg, "reverse"))){
-
 		effect = REVERSE;
-	
 		if (sfinfo.format == 131074)
 			strcat(outfilename, "_Reverse.aif");
 		else if (sfinfo.format == 65538 || sfinfo.format == 65539)
@@ -55,7 +56,33 @@ int main(int argc, const char **argv){
 
 		effect = INFO;
 		info(infilename, &sfinfo);
+
+	} else if (!(strcmp(effect_arg, "scramble"))){
+		effect =  SCRAMBLE;
+
+		if (sfinfo.format == 131074)
+			strcat(outfilename, "_Scramble.aif");
+		else if (sfinfo.format == 65538 || sfinfo.format == 65539)
+			strcat(outfilename, "_Scramble.wav");
+		else {
+			printf("Only .wav or .aif files are allowed\n");
+			return 1;
+		}
+		scramble(infile, outfile, infilename, outfilename, &sfinfo);
+	} else if (!(strcmp(effect_arg, "pitchup"))){
+		effect =  PITCHUP;
+
+		if (sfinfo.format == 131074)
+			strcat(outfilename, "_Pitchup.aif");
+		else if (sfinfo.format == 65538 || sfinfo.format == 65539)
+			strcat(outfilename, "_Pitchup.wav");
+		else {
+			printf("Only .wav or .aif files are allowed\n");
+			return 1;
+		}
+		pitchup(infile, outfile, infilename, outfilename, &sfinfo);
 	}
+
 
 	return 0;
 
@@ -99,6 +126,47 @@ void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *ou
 	return;
 }
 
+void pitchup(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo){
+
+	int readcount, i = 0, frames = sfinfo->frames;
+	double *data = malloc(sizeof(double)*(frames*sfinfo->channels));
+	double *dataToWrite = malloc(sizeof(double)*(frames*sfinfo->channels));
+
+	if (!infile)
+	{
+		printf("Not able to open input file %s.\n", infilename);
+		puts(sf_strerror (NULL));
+		return;
+	}
+
+	outfile = sf_open(outfilename, SFM_WRITE, sfinfo);
+
+	if (!outfile)
+	{
+		printf("Not able to open output file %s.\n", outfilename);
+		puts(sf_strerror(NULL));
+		return;
+	}
+
+	readcount = sf_readf_double(infile, data, frames);
+	
+	for (i = 0; i < frames*sfinfo->channels; i++){
+		dataToWrite[i] = data[i];		
+		sf_writef_double(outfile, dataToWrite, 1);
+	
+	}
+	
+//	sf_writef_double(outfile, dataToWrite, frames);
+
+	free(data);	
+	sf_close(infile);
+	sf_close(outfile);
+
+	
+	return;
+}
+
+
 void info(const char *infilename, SF_INFO *sfinfo){
 
 	int length = ((sfinfo->frames*sfinfo->channels)/sfinfo->samplerate);
@@ -110,4 +178,65 @@ void info(const char *infilename, SF_INFO *sfinfo){
 	return;
 }
 
+void scramble(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo){
+	
+	int readcount, i = 0, frames = sfinfo->frames*sfinfo->channels, sample, flag = 0;
+	double *data = malloc(sizeof(double)*(frames*sfinfo->channels));
+	double *dataToWrite = malloc(sizeof(double)*(frames*sfinfo->channels));
+
+	if (!infile)
+	{
+		printf("Not able to open input file %s.\n", infilename);
+		puts(sf_strerror (NULL));
+		return;
+	}
+
+	outfile = sf_open(outfilename, SFM_WRITE, sfinfo);
+
+	if (!outfile)
+	{
+		printf("Not able to open output file %s.\n", outfilename);
+		puts(sf_strerror(NULL));
+		return;
+	}
+
+	readcount = sf_readf_double(infile, data, frames);
+
+		flag = 0; 
+		for (i = 0; i < readcount; i++){
+			if (flag == 0){
+				//sample = (rand()%1)+1;
+				sample = 0;
+				//flag = 1;
+			}
+			if (sample == 0){
+				dataToWrite[i] = data[i];
+				i += 3;
+			} else if (sample == 1){
+				dataToWrite[i] = data[readcount-i];
+			} else if (sample == 2){
+				dataToWrite[i] = 0;
+
+			} else if (sample == 3){
+				dataToWrite[i] = data[i];
+
+			} else if (sample == 4){
+				dataToWrite[i] = dataToWrite[i]*2;
+
+			}
+		
+
+	}
+	readcount = sf_readf_double(infile, data, frames);
+	sf_writef_double(outfile, dataToWrite, frames);
+
+
+
+	free(data);	
+	sf_close(infile);
+	sf_close(outfile);
+
+
+	return;
+}
 
