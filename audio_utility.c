@@ -7,6 +7,7 @@
 #include <sndfile.h>
 #include <stdlib.h>
 #include <string.h>
+#include <samplerate.h>
 
 #define REVERSE 0
 #define INFO 1
