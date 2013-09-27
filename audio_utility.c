@@ -12,10 +12,12 @@
 void info(const char *infilename, SF_INFO *sfinfo);
 void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo);
 void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double new_sample_rate);
+void vari_speed(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double pitch);
+
 
 int main(int argc, const char **argv){
 	
-	if (argc < 3){
+	if (argc < 4){
 		printf("USAGE: utility effect inputFileName outputFileName parameters(if any)\n");
 		return 1;
 	}
@@ -25,7 +27,7 @@ int main(int argc, const char **argv){
 	sfinfo.format = 0;
 	const char *effect_arg = argv[1];
 	const char *infilename, *outfilename;
-	double new_sample_rate;
+	double new_sample_rate, pitch;
 	
 	// Reverse
 	if (!(strcmp(effect_arg, "reverse"))){
@@ -70,7 +72,7 @@ int main(int argc, const char **argv){
 
 		infilename = argv[2];
 		outfilename = argv[3];
-		new_sample_rate = atoi(argv[4]);
+		new_sample_rate = atof(argv[4]);
 		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
 		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
@@ -80,6 +82,28 @@ int main(int argc, const char **argv){
 		}
 		
 		sample_rate(infile, outfile, infilename, outfilename, &sfinfo, new_sample_rate);
+
+	// Vari Speed
+	} else if (!(strcmp(effect_arg, "vari"))){
+		
+		if (argc < 5) {
+			printf("USAGE: utility vari inputFileName outputFileName pitch\n");
+			return 1;
+		}
+		
+		infilename = argv[2];
+		outfilename = argv[3];
+		pitch = atof(argv[4]);
+		infile = sf_open(infilename, SFM_READ, &sfinfo);
+
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+			
+			printf("Only .wav or .aif files are allowed\n");
+			return 1;
+		}
+
+		vari_speed(infile, outfile, infilename, outfilename, &sfinfo, pitch);
+
 	}
 
 	return 0;
@@ -195,3 +219,53 @@ void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, cons
 
 }
 
+void vari_speed(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double pitch){
+
+	int readcount, i = 0, frames = sfinfo->frames, error;
+	long total_frames = sfinfo->frames*sfinfo->channels;
+	SRC_DATA src_data;  
+	float *data = malloc(sizeof(float)*(frames*sfinfo->channels));
+	float *dataToWrite = malloc(sizeof(float)*(frames*sfinfo->channels));
+	const char* error_string;
+
+	if (!infile)
+	{
+		printf("Not able to open input file %s.\n", infilename);
+		puts(sf_strerror (NULL));
+		return;
+	}
+
+	outfile = sf_open(outfilename, SFM_WRITE, sfinfo);
+
+	if (!outfile)
+	{
+		printf("Not able to open output file %s.\n", outfilename);
+		puts(sf_strerror(NULL));
+		return;
+	}
+
+	readcount = sf_readf_float(infile, data, frames);
+
+	src_data.data_in = data;
+	src_data.input_frames = total_frames;
+	src_data.data_out = dataToWrite;
+	src_data.output_frames = total_frames-1;
+	src_data.src_ratio = 1/pitch;
+
+	error = src_simple(&src_data, 0, sfinfo->channels);		
+
+	if (error){
+		error_string =  src_strerror(error);
+		printf("%s\n", error_string);
+	}
+
+	sf_writef_float(outfile, dataToWrite, frames);
+
+	free(data);	
+	sf_close(infile);
+	sf_close(outfile);
+
+	return;	
+
+
+}
