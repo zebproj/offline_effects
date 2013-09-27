@@ -9,11 +9,6 @@
 #include <string.h>
 #include <samplerate.h>
 
-
-#define INFO 0
-#define REVERSE 1
-#define SAMPLE_RATE 2
-
 void info(const char *infilename, SF_INFO *sfinfo);
 void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo);
 void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double new_sample_rate);
@@ -21,29 +16,28 @@ void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, cons
 int main(int argc, const char **argv){
 	
 	if (argc < 3){
-		printf("USAGE: inputFileName outputFileName effect parameters(if any)\n");
+		printf("USAGE: utility effect inputFileName outputFileName parameters(if any)\n");
 		return 1;
 	}
 
 	SNDFILE *infile, *outfile;
 	SF_INFO sfinfo;
 	sfinfo.format = 0;
-	const char *infilename = argv[1];
-	const char *outfilename = argv[2];
-
-	const char *effect_arg = argv[3];
-	int effect = 0;
+	const char *effect_arg = argv[1];
+	const char *infilename, *outfilename;
 	double new_sample_rate;
-
-	if (argc > 4)
-		new_sample_rate = atoi(argv[4]);
-
-	infile = sf_open(infilename, SFM_READ, &sfinfo);
-
+	
 	// Reverse
 	if (!(strcmp(effect_arg, "reverse"))){
 
-		effect = REVERSE;
+		if (argc < 4){
+			printf("USAGE: utility reverse inputFileName outputFileName\n");	
+			return 1;
+		}
+
+		infilename = argv[2];
+		outfilename = argv[3];
+		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
 		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
 
@@ -56,13 +50,29 @@ int main(int argc, const char **argv){
 	// Info
 	} else if (!(strcmp(effect_arg, "info"))){
 
-		effect = INFO;
+		if (argc < 3) {
+			
+			printf("USAGE: utility info inputFileName\n");
+			return 1;
+		}
+		infilename = argv[2];
+		infile = sf_open(infilename, SFM_READ, &sfinfo);
+
 		info(infilename, &sfinfo);
 
 	// Sample Rate
 	} else if (!(strcmp(effect_arg, "sr"))){
-		
-		effect = SAMPLE_RATE;
+	
+		if (argc < 5) {
+			printf("USAGE: utility sr inputFileName outputFileName new_sr\n");	
+			return 1;
+		}	
+
+		infilename = argv[2];
+		outfilename = argv[3];
+		new_sample_rate = atoi(argv[4]);
+		infile = sf_open(infilename, SFM_READ, &sfinfo);
+
 		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
 
 			printf("Only .wav or .aif files are allowed\n");
@@ -70,7 +80,6 @@ int main(int argc, const char **argv){
 		}
 		
 		sample_rate(infile, outfile, infilename, outfilename, &sfinfo, new_sample_rate);
-
 	}
 
 	return 0;
