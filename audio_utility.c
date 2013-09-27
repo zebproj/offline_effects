@@ -15,43 +15,38 @@
 #define SAMPLE_RATE 2
 
 void info(const char *infilename, SF_INFO *sfinfo);
-void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo);
-void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo, double new_sample_rate);
+void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo);
+void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double new_sample_rate);
 
 int main(int argc, const char **argv){
 	
 	if (argc < 3){
-		printf("USAGE: inputFileName effect parameters(if any)\n");
+		printf("USAGE: inputFileName outputFileName effect parameters(if any)\n");
 		return 1;
 	}
 
 	SNDFILE *infile, *outfile;
 	SF_INFO sfinfo;
 	sfinfo.format = 0;
-	
 	const char *infilename = argv[1];
-	const char *effect_arg = argv[2];
+	const char *outfilename = argv[2];
+
+	const char *effect_arg = argv[3];
 	int effect = 0;
 	double new_sample_rate;
-	char outfilename[300];
 
-	if (argc > 3)
-		new_sample_rate = atoi(argv[3]);
+	if (argc > 4)
+		new_sample_rate = atoi(argv[4]);
 
 	infile = sf_open(infilename, SFM_READ, &sfinfo);
-	int len  = (int)strlen(infilename);
-	len -=4;
-	len = strxfrm(outfilename, infilename, len);
 
 	// Reverse
 	if (!(strcmp(effect_arg, "reverse"))){
 
 		effect = REVERSE;
-		if (sfinfo.format == 131074)
-			strcat(outfilename, "_Reverse.aif");
-		else if (sfinfo.format == 65538 || sfinfo.format == 65539)
-			strcat(outfilename, "_Reverse.wav");
-		else {
+
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+
 			printf("Only .wav or .aif files are allowed\n");
 			return 1;
 		}
@@ -68,11 +63,8 @@ int main(int argc, const char **argv){
 	} else if (!(strcmp(effect_arg, "sr"))){
 		
 		effect = SAMPLE_RATE;
-		if (sfinfo.format == 131074)
-			strcat(outfilename, "_SR.aif");
-		else if (sfinfo.format == 65538 || sfinfo.format == 65539)
-			strcat(outfilename, "_SR.wav");
-		else {
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+
 			printf("Only .wav or .aif files are allowed\n");
 			return 1;
 		}
@@ -85,7 +77,7 @@ int main(int argc, const char **argv){
 
 }
 
-void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo){
+void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo){
 
 	int readcount, i = 0, frames = sfinfo->frames;
 	double *data = malloc(sizeof(double)*(frames*sfinfo->channels));
@@ -135,15 +127,22 @@ void info(const char *infilename, SF_INFO *sfinfo){
 	return;
 }
 
-void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char *outfilename, SF_INFO *sfinfo, double new_sample_rate){
+void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double new_sample_rate){
 
 	int readcount, i = 0, frames = sfinfo->frames, error;
+	SF_INFO new_file_info;
+	new_file_info.format = 0;
 	long total_frames = sfinfo->frames*sfinfo->channels;
 	SRC_DATA src_data;  
 	float *data = malloc(sizeof(float)*(frames*sfinfo->channels));
 	float *dataToWrite = malloc(sizeof(float)*(frames*sfinfo->channels));
 	const char* error_string;
 
+	new_file_info.samplerate = new_sample_rate;
+	new_file_info.channels = sfinfo->channels;
+	new_file_info.format = sfinfo->format;
+	new_file_info.sections = sfinfo->sections;
+	new_file_info.seekable = sfinfo->seekable;
 	
 	if (!infile)
 	{
@@ -152,7 +151,7 @@ void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, char
 		return;
 	}
 
-	outfile = sf_open(outfilename, SFM_WRITE, sfinfo);
+	outfile = sf_open(outfilename, SFM_WRITE, &new_file_info);
 
 	if (!outfile)
 	{
