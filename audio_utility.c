@@ -4,20 +4,69 @@
 // Audio File Utility Program
 
 #include <stdio.h>
-#include <sndfile.h>
+#include "sndfile.h"
 #include <stdlib.h>
 #include <string.h>
-#include <samplerate.h>
+#include "samplerate.h"
+#include "portaudio.h"
+
+#define FRAMES_PER_BUFFER (64)
+
+typedef struct
+{
+	float *file; 
+	int file_ptr;
+	int frames;
+}
+paTestData;
 
 void info(const char *infilename, SF_INFO *sfinfo);
 void reverse(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo);
 void sample_rate(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double new_sample_rate);
 void vari_speed(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const char *outfilename, SF_INFO *sfinfo, double pitch);
+void play(SNDFILE *infile, SF_INFO *sfinfo);
+static void StreamFinished();
 
+int patestCallback (const void *inputBuffer, void *outputBuffer,
+				unsigned long framesPerBuffer,
+				const PaStreamCallbackTimeInfo* timeInfo,
+				PaStreamCallbackFlags statusFlags,
+				void *userData) 
+{
+	paTestData *data = (paTestData*)userData;
+	float *out = (float*)outputBuffer;
+	unsigned long i;
+	
+	(void) timeInfo;
+	(void) statusFlags;
+	(void) inputBuffer;
+
+
+	for (i=0; i < framesPerBuffer; i++) {
+
+		*out++ = data->file[data->file_ptr];
+		data->file_ptr++;
+		
+
+		if (data->file_ptr >= data->frames)
+			data->file_ptr -= data->frames;
+
+
+		/*
+		if (i < framesPerBuffer/2) {
+			*out++ =1;	
+		} else {
+			*out++ = 0;	
+		}
+		*/
+	}
+
+	return paContinue;
+}
 
 int main(int argc, const char **argv){
 	
-	if (argc < 4){
+	if (argc < 3){
 		printf("USAGE: utility effect inputFileName outputFileName parameters(if any)\n");
 		return 1;
 	}
@@ -25,9 +74,11 @@ int main(int argc, const char **argv){
 	SNDFILE *infile, *outfile;
 	SF_INFO sfinfo;
 	sfinfo.format = 0;
+	
 	const char *effect_arg = argv[1];
 	const char *infilename, *outfilename;
 	double new_sample_rate, pitch;
+
 	
 	// Reverse
 	if (!(strcmp(effect_arg, "reverse"))){
@@ -103,6 +154,25 @@ int main(int argc, const char **argv){
 		}
 
 		vari_speed(infile, outfile, infilename, outfilename, &sfinfo, pitch);
+
+	// Play
+	} else if (!(strcmp(effect_arg, "play"))){
+	
+		if (argc < 3) {
+			printf("USAGE: utility play inputFileName\n");
+			return 1;
+		}	
+
+		infilename = argv[2];
+		infile = sf_open(infilename, SFM_READ, &sfinfo);
+
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+		
+			printf("Only .wav or .aif files are allowed\n");
+			return 1;
+		}
+
+		play(infile, &sfinfo);
 
 	}
 
@@ -269,3 +339,83 @@ void vari_speed(SNDFILE *infile, SNDFILE *outfile, const char *infilename, const
 
 
 }
+
+void StreamFinished(){
+
+
+	printf("Stream completed\n");
+}
+
+void play(SNDFILE *infile, SF_INFO *sfinfo) {
+
+	paTestData data;
+	PaStreamParameters outputParameters;
+	PaStream *stream;
+	PaError err;
+	err = Pa_Initialize();
+	const char *errorString;
+
+	if (err != paNoError)
+		printf("There was an error opening port audio\n");
+	outputParameters.device =  Pa_GetDefaultOutputDevice();
+	outputParameters.channelCount = sfinfo->channels;
+	outputParameters.sampleFormat = paFloat32;
+	outputParameters.hostApiSpecificStreamInfo = NULL;
+	outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
+	
+	err = Pa_OpenStream(&stream,
+				NULL,
+				&outputParameters,
+				sfinfo->samplerate,
+				FRAMES_PER_BUFFER,
+				paClipOff,
+				patestCallback,
+				&data);
+	if (err != paNoError){
+
+		printf(" error %d opening stream\n", err);
+		errorString = Pa_GetErrorText(err);
+		printf("%s\n", errorString);
+	}
+
+	int readcount, i = 0, frames = sfinfo->frames;
+	float *samples = malloc(sizeof(float)*(frames*sfinfo->channels));
+
+	if (!infile)
+	{
+		printf("Not able to open input file");
+		puts(sf_strerror (NULL));
+		return;
+	}
+
+	readcount = sf_readf_float(infile, samples, frames);
+
+	data.file = samples;
+	data.frames = frames;
+
+	err = Pa_SetStreamFinishedCallback(stream, &StreamFinished);
+	
+	if (err != paNoError)
+		printf("THere was an error with Pa_SetStreamFinishedCallback\n");
+
+	err = Pa_StartStream(stream);
+
+	if (err != paNoError) {
+		errorString = Pa_GetErrorText(err);
+		printf("%s\n", errorString);
+	}
+
+	//Pa_Sleep((frames*44100)*1000);
+
+	Pa_Sleep(1000000000);
+
+	err = Pa_StopStream(stream);
+
+	err = Pa_CloseStream(stream);
+
+	Pa_Terminate();
+
+
+	return;
+}
+
