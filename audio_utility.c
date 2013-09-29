@@ -10,7 +10,7 @@
 #include "samplerate.h"
 #include "portaudio.h"
 
-#define FRAMES_PER_BUFFER (64)
+#define FRAMES_PER_BUFFER (1024)
 
 typedef struct
 {
@@ -52,14 +52,7 @@ int patestCallback (const void *inputBuffer, void *outputBuffer,
 			data->file_ptr -= data->frames;
 
 
-		/*
-		if (i < framesPerBuffer/2) {
-			*out++ =1;	
-		} else {
-			*out++ = 0;	
 		}
-		*/
-	}
 
 	return paContinue;
 }
