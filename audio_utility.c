@@ -57,8 +57,7 @@ int patestCallback (const void *inputBuffer, void *outputBuffer,
 
 	}
 		
-
-
+	
 	return paContinue;
 
 }
@@ -361,7 +360,7 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 	outputParameters.sampleFormat = paFloat32;
 	outputParameters.hostApiSpecificStreamInfo = NULL;
 	//outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
-	outputParameters.suggestedLatency = .5;
+	outputParameters.suggestedLatency = .1;
 	
 	err = Pa_OpenStream(&stream,
 				NULL,
