@@ -1,10 +1,10 @@
 CC = gcc
 
-utility: audio_utility.o info.o reverse.o sample_rate.o varispeed.o play.o 
-	$(CC) -o utility audio_utility.o info.o reverse.o sample_rate.o varispeed.o play.o -lsndfile -lsamplerate -lportaudio
+utility: main.o info.o reverse.o sample_rate.o varispeed.o play.o 
+	$(CC) -o utility main.o info.o reverse.o sample_rate.o varispeed.o play.o -lsndfile -lsamplerate -lportaudio
 
-audio_utility.o: audio_utility.c
-	$(CC) -c audio_utility.c 
+main.o: main.c
+	$(CC) -c main.c 
 
 info.o: info.c info.h 
 	$(CC) -c info.c
