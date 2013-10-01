@@ -4,13 +4,14 @@
 // Audio File Utility Program
 
 #include <stdio.h>
-#include "sndfile.h"
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include "samplerate.h"
 #include "portaudio.h"
+#include "sndfile.h"
 
-#define FRAMES_PER_BUFFER (1024)
+#define FRAMES_PER_BUFFER (256)
 
 typedef struct
 {
@@ -47,14 +48,19 @@ int patestCallback (const void *inputBuffer, void *outputBuffer,
 		*out++ = data->file[data->file_ptr];
 		data->file_ptr++;
 		
-
+		
 		if (data->file_ptr >= data->frames)
 			data->file_ptr -= data->frames;
+		
+		if (data->file_ptr <= 1)
+			data->file_ptr += data->frames;
 
+	}
+		
 
-		}
 
 	return paContinue;
+
 }
 
 int main(int argc, const char **argv){
@@ -85,7 +91,7 @@ int main(int argc, const char **argv){
 		outfilename = argv[3];
 		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
 
 			printf("Only .wav or .aif files are allowed\n");
 			return 1;
@@ -119,7 +125,7 @@ int main(int argc, const char **argv){
 		new_sample_rate = atof(argv[4]);
 		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
 
 			printf("Only .wav or .aif files are allowed\n");
 			return 1;
@@ -140,7 +146,7 @@ int main(int argc, const char **argv){
 		pitch = atof(argv[4]);
 		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
 			
 			printf("Only .wav or .aif files are allowed\n");
 			return 1;
@@ -159,7 +165,7 @@ int main(int argc, const char **argv){
 		infilename = argv[2];
 		infile = sf_open(infilename, SFM_READ, &sfinfo);
 
-		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539) {
+		if (sfinfo.format != 131074 && sfinfo.format != 65538 && sfinfo.format != 65539 && sfinfo.format != 1245187) {
 		
 			printf("Only .wav or .aif files are allowed\n");
 			return 1;
@@ -354,7 +360,8 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 	outputParameters.channelCount = sfinfo->channels;
 	outputParameters.sampleFormat = paFloat32;
 	outputParameters.hostApiSpecificStreamInfo = NULL;
-	outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
+	//outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
+	outputParameters.suggestedLatency = .5;
 	
 	err = Pa_OpenStream(&stream,
 				NULL,
@@ -385,22 +392,16 @@ void play(SNDFILE *infile, SF_INFO *sfinfo) {
 
 	data.file = samples;
 	data.frames = frames;
+	data.file_ptr = 0;
 
 	err = Pa_SetStreamFinishedCallback(stream, &StreamFinished);
 	
 	if (err != paNoError)
-		printf("THere was an error with Pa_SetStreamFinishedCallback\n");
+		printf("There was an error with Pa_SetStreamFinishedCallback\n");
 
 	err = Pa_StartStream(stream);
 
-	if (err != paNoError) {
-		errorString = Pa_GetErrorText(err);
-		printf("%s\n", errorString);
-	}
-
-	//Pa_Sleep((frames*44100)*1000);
-
-	Pa_Sleep(1000000000);
+	Pa_Sleep((frames/sfinfo->samplerate)*1000);	
 
 	err = Pa_StopStream(stream);
 
