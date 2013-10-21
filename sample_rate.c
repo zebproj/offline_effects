@@ -45,7 +45,7 @@ void sample_rate(const char *infilename, const char *outfilename, double new_sam
 		return;
 	}
 
-	readcount = sf_readf_float(infile, data, frames);
+	readcount = sf_readf_float(infile, data, total_frames);
 
 	src_data.data_in = data;
 	src_data.input_frames = total_frames;
@@ -60,7 +60,7 @@ void sample_rate(const char *infilename, const char *outfilename, double new_sam
 		printf("%s\n", error_string);
 	}
 
-	sf_writef_float(outfile, dataToWrite, frames);
+	sf_writef_float(outfile, dataToWrite, src_data.output_frames_gen);
 	
 	free(data);	
 
